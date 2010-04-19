@@ -22,6 +22,7 @@ AMQPQueue::AMQPQueue(amqp_connection_state_t * cnn, int channelNum) {
 //		std::cout << "AMQPQueue()\n";;				
 		consumer_tag.bytes=NULL;
 		consumer_tag.len=0;
+		delivery_tag =0;
 
 		openChannel();
 }	
@@ -33,6 +34,7 @@ AMQPQueue::AMQPQueue(amqp_connection_state_t * cnn, int channelNum, string name)
 		
 		consumer_tag.bytes=NULL;
 		consumer_tag.len=0;
+		delivery_tag =0;
 		
 		openChannel();
 }
@@ -348,7 +350,8 @@ void AMQPQueue::sendGetCommand() {
 		} if (res.reply.id == AMQP_BASIC_GET_OK_METHOD) {
 
 				amqp_basic_get_ok_t* data = (amqp_basic_get_ok_t*) res.reply.decoded;
-
+				
+				delivery_tag = data->delivery_tag;
 				message->setDeliveryTag(data->delivery_tag);
 
 				amqp_bytes_t exName = data->exchange;			
@@ -564,6 +567,7 @@ void AMQPQueue::sendConsumeCommand() {
 	   
 		amqp_basic_deliver_t * delivery = (amqp_basic_deliver_t*) frame.payload.method.decoded;
 		
+		delivery_tag = delivery->delivery_tag;
 		message->setConsumerTag(delivery->consumer_tag);
 		message->setDeliveryTag(delivery->delivery_tag);
 
@@ -661,3 +665,30 @@ void AMQPQueue::setParam(short parms) {
 	this->parms=parms;
 }
 
+
+
+void AMQPQueue::Ack() {
+	if (!delivery_tag)
+		throw AMQPException("the delivery tag not set");
+
+	sendAckCommand();
+}
+
+void AMQPQueue::Ack(uint32_t delivery_tag) {
+	this->delivery_tag=delivery_tag;
+	
+	sendAckCommand();
+}
+
+void AMQPQueue::sendAckCommand() {
+
+	amqp_basic_ack_t s;
+	s.delivery_tag=delivery_tag;
+	s.multiple = ( AMQP_MULTIPLE & parms ) ? 1:0;
+
+	int res =  amqp_send_method( *cnn,
+				channelNum,
+				AMQP_BASIC_ACK_METHOD,
+				&s);
+
+}

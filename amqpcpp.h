@@ -28,6 +28,7 @@
 #define AMQP_NOWAIT			128
 #define AMQP_NOACK			256
 #define AMQP_NOLOCAL		512
+#define AMQP_MULTIPLE		1024
 
 
 #define HEADER_FOOTER_SIZE 8 //  7 bytes up front, then payload, then 1 byte footer 
@@ -137,6 +138,7 @@ class AMQPQueue : AMQPBase  {
 	protected:	
 		map< AMQPEvents_e, int(*)( AMQPMessage * ) > events;
 		amqp_bytes_t consumer_tag;
+		uint32_t delivery_tag;
 		
 	public:
 		AMQPQueue(amqp_connection_state_t * cnn, int channelNum);
@@ -175,7 +177,10 @@ class AMQPQueue : AMQPBase  {
 		void Cancel(amqp_bytes_t consumer_tag);
 		void Cancel(const char * consumer_tag);
 		void Cancel(string consumer_tag);
-				
+			
+		void Ack();
+		void Ack(uint32_t delivery_tag);
+					
 		string getName();
 		void setParam(short parms);
 
@@ -200,6 +205,7 @@ class AMQPQueue : AMQPBase  {
 		void sendGetCommand();
 		void sendConsumeCommand();
 		void sendCancelCommand();
+		void sendAckCommand();
 
 };
 
