@@ -2,6 +2,7 @@
 
 #include "amqpcpp.h"
 #include <iostream>
+#include <memory>
 
 void onMessage( AMQPMessage * message  ) {
 	char * data = message->getMessage();
@@ -19,7 +20,7 @@ int main () {
 //		AMQP amqp("123123:akalend@localhost/private");
 		AMQP amqp("123123:akalend@localhost:5673/private");		
 
-		AMQPQueue * qu2 = amqp.createQueue("q2");
+		auto_ptr<AMQPQueue> qu2(amqp.createQueue("q2"));
 		qu2->Declare();
 		qu2->Bind( "e", "");		
 
