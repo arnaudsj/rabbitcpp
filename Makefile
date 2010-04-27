@@ -1,19 +1,26 @@
-all: lib example_publish example_consume example_get
+RABBITCPP_SRC_PATH = ./src
+RABBITCPP_EXAMPLE_PATH = ./examples
 
-lib:
-	gcc -c AMQPBase.cpp AMQPException.cpp AMQPMessage.cpp AMQPConnection.cpp AMQPExchange.cpp AMQPQueue.cpp
+all: libcpp example_publish example_consume example_get
+
+rabbitmq_clib:
+	cd deps/rabbitmq-c; autoreconf -i; ./configure --prefix=`cd ../..;pwd`; make; make install
+
+libcpp:	
+	gcc -c -fPIC -I./include -L./lib $(RABBITCPP_SRC_PATH)/AMQPBase.cpp $(RABBITCPP_SRC_PATH)/AMQPException.cpp $(RABBITCPP_SRC_PATH)/AMQPMessage.cpp $(RABBITCPP_SRC_PATH)/AMQPConnection.cpp $(RABBITCPP_SRC_PATH)/AMQPExchange.cpp $(RABBITCPP_SRC_PATH)/AMQPQueue.cpp
 	ar rcs libamqpcpp.a *o
+	mv libamqpcpp.a lib/
 
 example_publish:
-	g++ -o example_publish  -lamqpcpp -lrabbitmq    -Iamqpcpp -I/usr/local/include -L/usr/local/lib  -L.  example_publish.cpp
+	g++ -o ./bin/example_publish  -lamqpcpp -lrabbitmq    -Iamqpcpp -I./include -I./src -L./lib  -L.  $(RABBITCPP_EXAMPLE_PATH)/example_publish.cpp
 
 example_consume:
-	g++ -o example_consume  -lamqpcpp -lrabbitmq    -Iamqpcpp -I/usr/local/include -L/usr/local/lib  -L.  example_consume.cpp
+	g++ -o ./bin/example_consume  -lamqpcpp -lrabbitmq    -Iamqpcpp -I./include -I./src -L./lib  -L.  $(RABBITCPP_EXAMPLE_PATH)/example_consume.cpp
 
 example_get:
-	g++ -o example_get  -lamqpcpp -lrabbitmq    -Iamqpcpp -I/usr/local/include -L/usr/local/lib  -L.  example_get.cpp
+	g++ -o ./bin/example_get  -lamqpcpp -lrabbitmq    -Iamqpcpp -I./include -I./src -L./lib  -L.  $(RABBITCPP_EXAMPLE_PATH)/example_get.cpp
 
 clean:
-	rm *o
-	rm *a
-	rm example_publish example_consume example_get
+	rm build/*o
+	rm lib/*a
+	cd bin; rm example_publish example_consume example_get

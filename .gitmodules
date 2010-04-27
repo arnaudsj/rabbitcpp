@@ -1,0 +1,6 @@
+[submodule "deps/rabbitmq-c"]
+	path = deps/rabbitmq-c
+	url = https://arnaudsj@github.com/arnaudsj/rabbitmq-c.git
+[submodule "deps/rabbitmq-codegen"]
+	path = deps/rabbitmq-codegen
+	url = https://arnaudsj@github.com/arnaudsj/rabbitmq-codegen.git
