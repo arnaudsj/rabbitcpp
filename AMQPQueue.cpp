@@ -7,9 +7,7 @@
  */
 
 #include <iostream>
-#include <string>
 #include <cstring>
-
 
 #include "amqpcpp.h"
 
@@ -22,8 +20,8 @@ AMQPQueue::AMQPQueue(amqp_connection_state_t * cnn, int channelNum) {
 //		std::cout << "AMQPQueue()\n";;				
 		consumer_tag.bytes=NULL;
 		consumer_tag.len=0;
-		delivery_tag =0;
-
+		delivery_tag =0;	
+		
 		openChannel();
 }	
 
@@ -43,7 +41,7 @@ AMQPQueue::~AMQPQueue() {
 //	std::cout << "~AMQPQueue()\n";
 	this->closeChannel();
 }
-
+	
 // Declare command /* 50, 10; 3276810 */
 
 void AMQPQueue::Declare() {
@@ -326,9 +324,9 @@ void AMQPQueue::sendGetCommand() {
 	// 1310760 CHANNEL_CLOSE
 		char error_message [256];
 		amqp_frame_t frame;
-		message = new AMQPMessage(this) ;
-
-
+	
+	pmessage = new AMQPMessage(this);
+	
 		if ( res.reply_type == AMQP_RESPONSE_NONE) {
 			throw AMQPException("error the Get command, response none");		
 		}
@@ -345,21 +343,21 @@ void AMQPQueue::sendGetCommand() {
 
 			throw AMQPException(error_message);
 		} if (res.reply.id == AMQP_BASIC_GET_EMPTY_METHOD) {
-			message->setMessageCount(-1);
+			pmessage->setMessageCount(-1);
 			return;		
 		} if (res.reply.id == AMQP_BASIC_GET_OK_METHOD) {
 
 				amqp_basic_get_ok_t* data = (amqp_basic_get_ok_t*) res.reply.decoded;
 				
 				delivery_tag = data->delivery_tag;
-				message->setDeliveryTag(data->delivery_tag);
+				pmessage->setDeliveryTag(data->delivery_tag);
 
 				amqp_bytes_t exName = data->exchange;			
 				
 				char * dst = (char *) malloc(exName.len+1);
 				strncpy(dst, (const char *)exName.bytes, exName.len  );
 				*(dst+exName.len) = '\0';
-				message->setExchange(dst);	
+				pmessage->setExchange(dst);	
 				free(dst);
 				
 				amqp_bytes_t routingKey = data->routing_key;			
@@ -367,10 +365,10 @@ void AMQPQueue::sendGetCommand() {
 				dst = (char *) malloc(routingKey.len+1);
 				strncpy(dst, (const char *)routingKey.bytes, routingKey.len);
 				*(dst+routingKey.len) = '\0';
-				message->setRoutingKey(dst);	
+				pmessage->setRoutingKey(dst);	
 				free(dst);
 								
-				message->setMessageCount(data->message_count);	
+				pmessage->setMessageCount(data->message_count);	
 				
 
 		} else {
@@ -392,8 +390,10 @@ void AMQPQueue::sendGetCommand() {
 					throw AMQPException(" read frame error");
 
 		if (frame.frame_type == AMQP_FRAME_HEADER){
-//			cout << "----  AMQP_FRAME_HEADER   --------\n";
-			continue;
+			//cout << "----  AMQP_FRAME_HEADER   --------\n";
+				amqp_basic_properties_t * p = (amqp_basic_properties_t *) frame.payload.properties.decoded;		
+				AMQPQueue::setHeaders(p);
+				continue;
 		}	   
 
 		if (frame.frame_type == AMQP_FRAME_BODY){
@@ -437,7 +437,7 @@ void AMQPQueue::sendGetCommand() {
 
 	
 	if (tmp) {
-		message->setMessage(tmp);	
+		pmessage->setMessage(tmp);	
 		free(tmp);
 	}
 	
@@ -531,6 +531,8 @@ void AMQPQueue::sendConsumeCommand() {
 		}
 	
 	
+	auto_ptr<AMQPMessage> message ( new AMQPMessage(this) );
+	pmessage = message.get();
 	
 	amqp_frame_t frame;
 	char * buf=NULL, *pbuf = NULL; 
@@ -538,8 +540,6 @@ void AMQPQueue::sendConsumeCommand() {
 	size_t body_received;
 	size_t body_target;
 		
-	AMQPMessage * message = new AMQPMessage(this);									
-				
 	while(1) {
 
 	   amqp_maybe_release_buffers(*cnn);
@@ -555,7 +555,10 @@ void AMQPQueue::sendConsumeCommand() {
 		}
 	   
 		if (frame.payload.method.id == AMQP_BASIC_CANCEL_OK_METHOD){
-//			cout << "method.id="<< frame.payload.method.id << endl;					
+//			cout << "CANCEL OK method.id="<< frame.payload.method.id << endl;					
+			if ( events.find(AMQP_CANCEL) != events.end() ) {
+				(*events[AMQP_CANCEL])(pmessage);
+			}
 			break;
 		}
 
@@ -568,11 +571,11 @@ void AMQPQueue::sendConsumeCommand() {
 		amqp_basic_deliver_t * delivery = (amqp_basic_deliver_t*) frame.payload.method.decoded;
 		
 		delivery_tag = delivery->delivery_tag;
-		message->setConsumerTag(delivery->consumer_tag);
-		message->setDeliveryTag(delivery->delivery_tag);
+		pmessage->setConsumerTag(delivery->consumer_tag);
+		pmessage->setDeliveryTag(delivery->delivery_tag);
 
-		message->setExchange(delivery->exchange);
-		message->setRoutingKey(delivery->routing_key);
+		pmessage->setExchange(delivery->exchange);
+		pmessage->setRoutingKey(delivery->routing_key);
 			
 					
 		result = amqp_simple_wait_frame(*cnn, &frame);
@@ -588,6 +591,10 @@ void AMQPQueue::sendConsumeCommand() {
             return;
 		}
 	
+		amqp_basic_properties_t * p = (amqp_basic_properties_t *) frame.payload.properties.decoded;
+		
+		AMQPQueue::setHeaders(p);
+
 		body_target = frame.payload.properties.body_size;
 		body_received = 0;
 	   
@@ -614,16 +621,75 @@ void AMQPQueue::sendConsumeCommand() {
 
 		} // end while 
 	   
-		message->setMessage(buf);	   
+		pmessage->setMessage(buf);	   
 		free(buf);
 		
 		if ( events.find(AMQP_MESSAGE) != events.end() ) {
-			int res = (int)(*events[AMQP_MESSAGE])(message);
-			cout << "res="<<res<<endl;
+			int res = (int)(*events[AMQP_MESSAGE])(pmessage);
+//			cout << "res="<<res<<endl;
 			if (res) break;
 		}
 	}
 	
+}
+
+void AMQPQueue::setHeaders(amqp_basic_properties_t * p) {
+		if (pmessage == NULL) 
+			return;
+			
+		if (p->_flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {			
+			pmessage->addHeader("Content-type", &p->content_type );
+		}
+
+		if (p->_flags & AMQP_BASIC_CONTENT_ENCODING_FLAG) {
+			pmessage->addHeader("Content-encoding", &p->content_encoding );
+		}
+
+	
+		if (p->_flags & AMQP_BASIC_DELIVERY_MODE_FLAG) {
+			pmessage->addHeader("Delivery-mode", &p->delivery_mode );
+		}
+			
+		if (p->_flags & AMQP_BASIC_MESSAGE_ID_FLAG) {
+			pmessage->addHeader("message_id", &p->message_id );
+		}
+		
+		if (p->_flags & AMQP_BASIC_USER_ID_FLAG) {
+			pmessage->addHeader("user_id", &p->user_id );
+		}
+
+		if (p->_flags & AMQP_BASIC_APP_ID_FLAG) {
+			pmessage->addHeader("app_id", &p->app_id );
+		}
+
+		if (p->_flags & AMQP_BASIC_CLUSTER_ID_FLAG) {
+			pmessage->addHeader("cluster_id", &p->cluster_id );
+		}
+	
+		if (p->_flags & AMQP_BASIC_CORRELATION_ID_FLAG) {
+			pmessage->addHeader("correlation_id", &p->correlation_id );
+		}
+
+		if (p->_flags & AMQP_BASIC_PRIORITY_FLAG) {
+			pmessage->addHeader("priority", &p->priority );
+		}
+
+		if (p->_flags & AMQP_BASIC_TIMESTAMP_FLAG) {
+			pmessage->addHeader("timestamp", &p->timestamp );
+		}
+
+		if (p->_flags & AMQP_BASIC_EXPIRATION_FLAG) {
+			pmessage->addHeader("Expiration", &p->expiration );
+		}
+		
+		if (p->_flags & AMQP_BASIC_TYPE_FLAG) {
+			pmessage->addHeader("type", &p->type);
+		}
+		
+		if (p->_flags & AMQP_BASIC_REPLY_TO_FLAG) {
+			pmessage->addHeader("Reply-to", &p->reply_to);
+		}
+
 }
 
 void AMQPQueue::Cancel(string consumer_tag){
@@ -642,19 +708,17 @@ void AMQPQueue::Cancel(amqp_bytes_t consumer_tag){
 	AMQPQueue::sendCancelCommand();
 }
 
+
+
 void AMQPQueue::sendCancelCommand(){
 	amqp_basic_cancel_t s;
 	s.consumer_tag=consumer_tag;
 	s.nowait=( AMQP_NOWAIT & parms ) ? 1:0;
 
-	amqp_method_number_t method_ok = AMQP_BASIC_CANCEL_OK_METHOD;
-    amqp_rpc_reply_t res = amqp_simple_rpc( *cnn,
-					channelNum,
-					AMQP_BASIC_CANCEL_METHOD,
-					&method_ok, &s);
-
-	AMQPBase::checkReply(&res);
-	
+	amqp_send_method( *cnn,
+			channelNum,
+			AMQP_BASIC_CANCEL_METHOD,
+			&s);	
 }
 
 amqp_bytes_t AMQPQueue::getConsumerTag() {
@@ -664,8 +728,6 @@ amqp_bytes_t AMQPQueue::getConsumerTag() {
 void AMQPQueue::setParam(short parms) {
 	this->parms=parms;
 }
-
-
 
 void AMQPQueue::Ack() {
 	if (!delivery_tag)
@@ -686,7 +748,7 @@ void AMQPQueue::sendAckCommand() {
 	s.delivery_tag=delivery_tag;
 	s.multiple = ( AMQP_MULTIPLE & parms ) ? 1:0;
 
-	int res =  amqp_send_method( *cnn,
+	amqp_send_method( *cnn,
 				channelNum,
 				AMQP_BASIC_ACK_METHOD,
 				&s);

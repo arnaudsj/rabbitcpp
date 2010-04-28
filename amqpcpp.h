@@ -78,8 +78,8 @@ class AMQPMessage {
 	int message_count; 
 	string consumer_tag;
 	AMQPQueue * queue;
-
-	
+	map<string,string> headers;
+	 
 	public :	
 		AMQPMessage(AMQPQueue * queue);		
 		~AMQPMessage();
@@ -87,10 +87,14 @@ class AMQPMessage {
 		void setMessage(char * data);
 		char * getMessage();
 		
+		void addHeader(char * name, amqp_bytes_t * value);
+		void addHeader(char * name, uint64_t * value);	
+		void addHeader(char * name, uint8_t * value);			
+		string getHeader(string name);
+		
 		void setConsumerTag( amqp_bytes_t consumer_tag);
 		void setConsumerTag( string consumer_tag);
-		string getConsumerTag();		
-		
+		string getConsumerTag();				
 		
 		void setMessageCount( int count);
 		int getMessageCount();
@@ -118,7 +122,7 @@ class AMQPBase {
 		short parms;
 		amqp_connection_state_t * cnn;
 		int channelNum;
-		AMQPMessage * message;
+		AMQPMessage * pmessage;
 		
 		short opened;
 		
@@ -132,6 +136,7 @@ class AMQPBase {
 		int getChannelNum();
 		void setParam(short param);
 		string getName();
+
 };
 
 class AMQPQueue : AMQPBase  {
@@ -177,7 +182,7 @@ class AMQPQueue : AMQPBase  {
 		void Cancel(amqp_bytes_t consumer_tag);
 		void Cancel(const char * consumer_tag);
 		void Cancel(string consumer_tag);
-			
+
 		void Ack();
 		void Ack(uint32_t delivery_tag);
 					
@@ -185,7 +190,7 @@ class AMQPQueue : AMQPBase  {
 		void setParam(short parms);
 
 		AMQPMessage * getMessage() {
-			return message;
+			return pmessage;
 		}
 		
 		void setConsumerTag(string consumer_tag);
@@ -206,13 +211,16 @@ class AMQPQueue : AMQPBase  {
 		void sendConsumeCommand();
 		void sendCancelCommand();
 		void sendAckCommand();
+		void setHeaders(amqp_basic_properties_t * p);
 
 };
 
 
 class AMQPExchange : AMQPBase {	
 	string type;		
-		
+	map<string,string> sHeaders;
+	map<string, int> iHeaders;
+	
 	public :
 		AMQPExchange(amqp_connection_state_t * cnn, int channelNum);
 		AMQPExchange(amqp_connection_state_t * cnn, int channelNum, string name);
@@ -243,6 +251,11 @@ class AMQPExchange : AMQPBase {
 				
 		string getName();
 		void setParam(short param );
+		
+		void setHeader(const char * name, int value);
+		void setHeader(const char * name, const char * value);
+		void setHeader(const char * name, string value);
+
 
 	protected:
 
@@ -293,6 +306,7 @@ class AMQP {
 		void printConnect();
 		
 	private:
+		//AMQP& operator =(AMQP &ob);
 		AMQP( AMQP &ob );
 		void init();
 		void initDefault();

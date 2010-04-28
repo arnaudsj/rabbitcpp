@@ -29,7 +29,7 @@ AMQPMessage::AMQPMessage( AMQPQueue * queue )
 		
 AMQPMessage::~AMQPMessage() 
 {
-//			cout <<  "dtor AMQPMessage";
+//			cout <<  "dtor AMQPMessage\n";
 	if (data) {
 		free(data);
 //				cout <<  " free(data)";
@@ -121,6 +121,36 @@ string AMQPMessage::getRoutingKey()
 	return routing_key;		
 }	
 
+void AMQPMessage::addHeader(char * name, amqp_bytes_t * value)	
+{
+	string svalue;
+	svalue.assign(( const char *) value->bytes, value->len);
+	string sname = name;
+	headers.insert( pair<string,string>(sname,svalue));		
+}	
+
+void AMQPMessage::addHeader(char * name, uint64_t * value)	
+{
+	char ivalue[32];
+	bzero(ivalue,32);
+	sprintf(ivalue,"%d",*value);
+	headers.insert( pair<string,string>(string(name),string(ivalue)));
+}	
+
+void AMQPMessage::addHeader(char * name, uint8_t * value)	
+{
+	char ivalue[4];
+	bzero(ivalue,4);
+	sprintf(ivalue,"%d",*value);
+	headers.insert( pair<string,string>(string(name),string(ivalue)));	
+}	
+
+string AMQPMessage::getHeader(string name) {
+	if (headers.find(name) == headers.end())
+		return "";
+	else
+		return headers[name];
+}
 
 AMQPQueue * AMQPMessage::getQueue() {
 	return queue;

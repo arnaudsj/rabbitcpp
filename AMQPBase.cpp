@@ -40,8 +40,7 @@ void AMQPBase::checkClosed(amqp_rpc_reply_t * res) {
 }
 
 void AMQPBase::openChannel() {
-	message = NULL;
-	
+
 	opened=1;	
 //			std::cout << "openChannel num="<< channelNum << std::endl;
 

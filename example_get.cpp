@@ -1,7 +1,6 @@
 
 #include "amqpcpp.h"
 #include <iostream>
-#include <memory>
 
 int main () {
 
@@ -11,7 +10,7 @@ int main () {
 //		AMQP amqp("123123:akalend@localhost/private");
 		AMQP amqp("123123:akalend@localhost:5673/private");		
 
-		auto_ptr<AMQPQueue> qu2(amqp.createQueue("q2"));
+		AMQPQueue * qu2 = amqp.createQueue("q2");
 		qu2->Declare();		
 		
 		
@@ -25,6 +24,8 @@ int main () {
 			
 			cout << "message\n"<< m->getMessage() << "\nmessage key: "<<  m->getRoutingKey() << endl;
 			cout << "exchange: "<<  m->getExchange() << endl;											
+			cout << "Content-type: "<< m->getHeader("Content-type") << endl;	
+			cout << "Content-encoding: "<< m->getHeader("Content-encoding") << endl;	
 			} else 
 				break;				
 						

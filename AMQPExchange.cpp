@@ -31,9 +31,6 @@ AMQPExchange::AMQPExchange(amqp_connection_state_t * cnn, int channelNum, string
 		openChannel();
 }
 
-
-
-
 //Declare
 
 void AMQPExchange::Declare() {
@@ -240,17 +237,79 @@ void AMQPExchange::Publish(string message, string key) {
 	AMQPExchange::sendPublishCommand(message.c_str(), key.c_str());
 }
 
-
 void AMQPExchange::sendPublishCommand(const char * message, const char * key) {
 	amqp_bytes_t exchangeByte = amqp_cstring_bytes(name.c_str());
 	amqp_bytes_t keyrouteByte = amqp_cstring_bytes(key);
 	amqp_bytes_t messageByte = amqp_cstring_bytes(message);
 		
 	amqp_basic_properties_t props;
-    props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
-    props.content_type = amqp_cstring_bytes("text/plain");
-    props.delivery_mode = 2; // persistent delivery mode
+ 
+	if (sHeaders.find("Content-type")!= sHeaders.end())
+		props.content_type = amqp_cstring_bytes(sHeaders["Content-type"].c_str());
+	else	
+		props.content_type = amqp_cstring_bytes("text/plain");
+ 
+	if (iHeaders.find("Delivery-mode")!= iHeaders.end())
+		props.delivery_mode = (uint8_t)iHeaders["Delivery-mode"];
+	else	
+		props.delivery_mode = 2; // persistent delivery mode
+		
+	props._flags = AMQP_BASIC_CONTENT_TYPE_FLAG | AMQP_BASIC_DELIVERY_MODE_FLAG;
+	
+	if (sHeaders.find("Content-encoding")!= sHeaders.end()) {
+		props.content_encoding = amqp_cstring_bytes(sHeaders["Content-encoding"].c_str());
+		props._flags += AMQP_BASIC_CONTENT_ENCODING_FLAG;
+	 }
+	 
+	if (sHeaders.find("message_id")!= sHeaders.end()) {
+		props.message_id = amqp_cstring_bytes(sHeaders["message_id"].c_str());
+		props._flags += AMQP_BASIC_MESSAGE_ID_FLAG;
+	 }
+	 
+	if (sHeaders.find("user_id")!= sHeaders.end()) {
+		props.user_id = amqp_cstring_bytes(sHeaders["user_id"].c_str());
+		props._flags += AMQP_BASIC_USER_ID_FLAG;
+	 }
+	 
+	if (sHeaders.find("app_id")!= sHeaders.end()) {
+		props.app_id = amqp_cstring_bytes(sHeaders["app_id"].c_str());
+		props._flags += AMQP_BASIC_APP_ID_FLAG;
+	 }
 
+	if (sHeaders.find("cluster_id")!= sHeaders.end()) {
+		props.cluster_id = amqp_cstring_bytes(sHeaders["cluster_id"].c_str());
+		props._flags += AMQP_BASIC_CLUSTER_ID_FLAG;
+	 }
+
+	if (sHeaders.find("correlation_id")!= sHeaders.end()) {
+		props.correlation_id = amqp_cstring_bytes(sHeaders["correlation_id"].c_str());
+		props._flags += AMQP_BASIC_CORRELATION_ID_FLAG;
+	 }
+	 	 	 
+	if (iHeaders.find("priority")!= iHeaders.end()) {
+		props.priority = (uint8_t) iHeaders["priority"];
+		props._flags += AMQP_BASIC_PRIORITY_FLAG;	
+	 }
+	 
+	if (iHeaders.find("timestamp")!= iHeaders.end()) {
+		props.timestamp = (uint64_t) iHeaders["timestamp"];
+		props._flags += AMQP_BASIC_TIMESTAMP_FLAG;	
+	 }
+	 
+	if (sHeaders.find("Expiration")!= sHeaders.end()) {
+		props.expiration = amqp_cstring_bytes(sHeaders["Expiration"].c_str());
+		props._flags += AMQP_BASIC_EXPIRATION_FLAG;
+	 }
+	 
+	if (sHeaders.find("type")!= sHeaders.end()) {
+		props.type = amqp_cstring_bytes(sHeaders["type"].c_str());
+		props._flags += AMQP_BASIC_TYPE_FLAG;
+	 }
+	 
+	if (sHeaders.find("Reply-to")!= sHeaders.end()) {
+		props.reply_to = amqp_cstring_bytes(sHeaders["Reply-to"].c_str());
+		props._flags += AMQP_BASIC_REPLY_TO_FLAG;
+	 }
 
     short mandatory = (parms & AMQP_MANDATORY) ? 1:0;
     short immediate = (parms & AMQP_IMMIDIATE) ? 1:0;
@@ -263,5 +322,16 @@ void AMQPExchange::sendPublishCommand(const char * message, const char * key) {
 				    immediate, // immediate
 				    &props,
 				    messageByte);
+}
+
+void AMQPExchange::setHeader(const char * name, int value) {
+	iHeaders.insert(pair<string,int>( string(name), value));
+}
+
+void AMQPExchange::setHeader(const char * name, const char * value) {
+	sHeaders.insert(pair<string,string>( string(name), string(value)));
+}
+void AMQPExchange::setHeader(const char * name, string value) {
+	sHeaders.insert(pair<string,string>( string(name), value));
 }
 
