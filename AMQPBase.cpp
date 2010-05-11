@@ -51,10 +51,17 @@ void AMQPBase::openChannel() {
 }
 
 void AMQPBase::closeChannel() {
-//			std::cout << "closeChannel num="<< channelNum << std::endl;
+//	std::cout << "closeChannel num="<< channelNum << std::endl;
 	if (opened)
 		amqp_channel_close(*cnn, channelNum, AMQP_REPLY_SUCCESS);		
 }
+
+void AMQPBase::reopen() {
+
+	if (opened) return;
+	AMQPBase::openChannel();	
+}
+
 
 int AMQPBase::getChannelNum() {
 	return channelNum;
@@ -63,12 +70,21 @@ int AMQPBase::getChannelNum() {
 
 void AMQPBase::setParam(short param) {
 	this->parms=param;
-};
+}
 
 string AMQPBase::getName() {
 	if (!name.size())
 		name="";	
 	return name;
 }
+
+void AMQPBase::setName(const char * name) {
+	this->name=name;
+}
+
+void AMQPBase::setName(string name) {
+	this->name=name;
+}			
+
 
 #endif

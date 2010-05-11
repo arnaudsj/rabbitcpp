@@ -13,8 +13,6 @@
 
 using namespace std;
 
-
-
 AMQPExchange::AMQPExchange(amqp_connection_state_t * cnn, int channelNum) {
 		this->cnn = cnn;
 		this->channelNum = channelNum;
@@ -334,4 +332,3 @@ void AMQPExchange::setHeader(const char * name, const char * value) {
 void AMQPExchange::setHeader(const char * name, string value) {
 	sHeaders.insert(pair<string,string>( string(name), value));
 }
-

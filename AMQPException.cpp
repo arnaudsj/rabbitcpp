@@ -29,11 +29,14 @@ AMQPException::AMQPException( amqp_rpc_reply_t * res) {
 
 		char buf[512];
 		bzero(buf,512);
+		this->code = 0;
 
 		switch (res->reply.id) {
 			case AMQP_CONNECTION_CLOSE_METHOD: 
 			{
 				amqp_connection_close_t *m = (amqp_connection_close_t *) res->reply.decoded;
+				this->code = m->reply_code;
+				
 				sprintf(buf, "server connection error %d, message: %.*s",
 				m->reply_code,
 				(int) m->reply_text.len, (char *) m->reply_text.bytes);
@@ -42,9 +45,12 @@ AMQPException::AMQPException( amqp_rpc_reply_t * res) {
 			case AMQP_CHANNEL_CLOSE_METHOD: 
 			{
 			  amqp_channel_close_t *m = (amqp_channel_close_t *) res->reply.decoded;
-			  sprintf(buf, "server channel error %d, message: %.*s",
+			  this->code = m->reply_code;
+				
+			  int c_id = (int) m->class_id;
+			  sprintf(buf, "server channel error %d, message: %.*s class=%d method=%d",
 				  m->reply_code,
-				  (int) m->reply_text.len, (char *) m->reply_text.bytes);
+				  (int) m->reply_text.len, (char *) m->reply_text.bytes, c_id,m->method_id);
 			  break;
 			}
 			default:
@@ -52,14 +58,15 @@ AMQPException::AMQPException( amqp_rpc_reply_t * res) {
 			  break;
 		} // end switch
 		
-			cout << "message = "<< buf<< endl;;
+//			cout << "message = "<< buf<< endl;;
 		this->message=buf;
 	} 
-	
-
 
 }
 
+uint16_t  AMQPException::getReplyCode() {
+	return code;
+}
 
 string AMQPException::getMessage()
 {

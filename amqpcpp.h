@@ -60,11 +60,13 @@ enum AMQPEvents_e {
 class AMQPException {
 
 	string message;
+	int code;
 	public: 
 		AMQPException(const char * message);
 		AMQPException( amqp_rpc_reply_t * res );
 	
 		string getMessage();
+		uint16_t    getReplyCode();
 };
 
 class AMQPQueue;
@@ -129,22 +131,25 @@ class AMQPBase {
 		void checkReply(amqp_rpc_reply_t * res);
 		void checkClosed(amqp_rpc_reply_t * res);
 		void openChannel();		
-		void closeChannel();
+		
 		
 	public:	
 		~AMQPBase();		
 		int getChannelNum();
 		void setParam(short param);
 		string getName();
-
+		void closeChannel();
+		void reopen();
+		void setName(const char * name);
+		void setName(string name);	
 };
 
-class AMQPQueue : AMQPBase  {
+class AMQPQueue : public AMQPBase  {
 	protected:	
 		map< AMQPEvents_e, int(*)( AMQPMessage * ) > events;
 		amqp_bytes_t consumer_tag;
 		uint32_t delivery_tag;
-		
+		uint32_t count;
 	public:
 		AMQPQueue(amqp_connection_state_t * cnn, int channelNum);
 		AMQPQueue(amqp_connection_state_t * cnn, int channelNum, string name);
@@ -185,12 +190,13 @@ class AMQPQueue : AMQPBase  {
 
 		void Ack();
 		void Ack(uint32_t delivery_tag);
-					
-		string getName();
-		void setParam(short parms);
-
+		
 		AMQPMessage * getMessage() {
 			return pmessage;
+		}
+		
+		uint32_t getCount() {
+			return count;
 		}
 		
 		void setConsumerTag(string consumer_tag);
@@ -216,7 +222,7 @@ class AMQPQueue : AMQPBase  {
 };
 
 
-class AMQPExchange : AMQPBase {	
+class AMQPExchange : public AMQPBase {	
 	string type;		
 	map<string,string> sHeaders;
 	map<string, int> iHeaders;
@@ -249,13 +255,9 @@ class AMQPExchange : AMQPBase {
 		void Publish(string message, string key);
 		void Publish(const char * message, string key);
 				
-		string getName();
-		void setParam(short param );
-		
 		void setHeader(const char * name, int value);
 		void setHeader(const char * name, const char * value);
 		void setHeader(const char * name, string value);
-
 
 	protected:
 
@@ -304,6 +306,8 @@ class AMQP {
 		AMQPQueue * createQueue(const char * name);
 
 		void printConnect();
+		
+		void closeChannel();
 		
 	private:
 		//AMQP& operator =(AMQP &ob);

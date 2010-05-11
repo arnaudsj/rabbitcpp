@@ -43,8 +43,6 @@ AMQP::AMQP(string cnnStr) {
 	};
 
 AMQP::~AMQP() { 
-
-//	cout<<  "AMQP::~AMQP() close channel\n";		
 	if (channels.size()) {
 		vector<AMQPBase*>::iterator i;
 		for (i=channels.begin(); i!=channels.end(); i++) {
@@ -52,10 +50,7 @@ AMQP::~AMQP() {
 			delete *i;
 		}
 	}
-	if (exchange)
-		delete exchange;
-
-//	cout<<  "AMQP::~AMQP() destroy connection\n";	
+	
 	amqp_destroy_connection(cnn);
 	close(sockfd);
 	
@@ -263,5 +258,14 @@ AMQPQueue * AMQP::createQueue(string name) {
 
 }
 
-
+void AMQP::closeChannel() {
+	channelNumber--;
+	AMQPBase * cnn = channels.back();	 
+	if (cnn) {
+		delete cnn;
+		channels.pop_back();
+	}
+//	cout << "vector="<<channels.size() <<" capacity="<<channels.capacity()<<"channel="<< channelNumber<<   endl;
+	
+}
 
